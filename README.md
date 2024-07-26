@@ -1,7 +1,7 @@
 <div>
 <h2><strong>Swagger JSON to Excel Documentation</strong></h2>
 
-<h3><strong>This console app can convert swagger JSON file to readable formatted Excel file.</strong></h3>
+<h3><strong>This console app can convert swagger JSON file to readable Excel file.</strong></h3>
 <strong>Steps to run this app:</strong>
 <ul>
 	<li> While executing "dotnet run" command make sure you have input.json file placed in folder "C:\Users\{UserName}\"</li>
