@@ -183,54 +183,75 @@ namespace Swagger_json_to_excel
             }
 
             return null;
-        }
+        }        
 
         static string ResolveSchema(JObject schema, Dictionary<string, JObject> schemas)
         {
             if (schema == null)
                 return null;
 
+            // Deep clone the schema to avoid modifying the original
             var schemaCopy = schema.DeepClone() as JObject;
 
-            // Resolve $ref references in schema
-            foreach (var property in schemaCopy.Properties().ToList())
+            // Recursively resolve references in the schema
+            void ResolveReferences(JToken token)
             {
-                if (property.Value is JObject propertyObject)
+                if (token is JObject obj)
                 {
-                    var refPath = propertyObject["$ref"]?.ToString();
-                    if (!string.IsNullOrEmpty(refPath))
+                    foreach (var property in obj.Properties().ToList())
                     {
-                        var resolvedSchema = GetSchemaReference(refPath, schemas);
-                        if (resolvedSchema != null)
+                        if (property.Value is JObject propertyObject)
                         {
-                            property.Value = JObject.Parse(resolvedSchema);
-                        }
-                    }
-                    else
-                    {
-                        // Recursively resolve nested properties
-                        ResolveSchema(propertyObject, schemas);
-                    }
-                }
-                else if (property.Value is JArray array)
-                {
-                    // Handle arrays
-                    foreach (var item in array.Children<JObject>())
-                    {
-                        var itemSchemaRef = item["$ref"]?.ToString();
-                        if (!string.IsNullOrEmpty(itemSchemaRef))
-                        {
-                            var resolvedItemSchema = GetSchemaReference(itemSchemaRef, schemas);
-                            if (resolvedItemSchema != null)
+                            var refPath = propertyObject["$ref"]?.ToString();
+                            if (!string.IsNullOrEmpty(refPath))
                             {
-                                property.Value = JObject.Parse(resolvedItemSchema);
+                                var resolvedSchema = GetSchemaReference(refPath, schemas);
+                                if (resolvedSchema != null)
+                                {
+                                    // Replace $ref with the resolved schema
+                                    obj[property.Name] = JObject.Parse(resolvedSchema);
+                                }
+                            }
+                            else
+                            {
+                                // Recursively resolve nested objects
+                                ResolveReferences(propertyObject);
+                            }
+                        }
+                        else if (property.Value is JArray array)
+                        {
+                            // Handle arrays by resolving each item
+                            for (int i = 0; i < array.Count; i++)
+                            {
+                                if (array[i] is JObject arrayItem)
+                                {
+                                    var itemRefPath = arrayItem["$ref"]?.ToString();
+                                    if (!string.IsNullOrEmpty(itemRefPath))
+                                    {
+                                        var resolvedItemSchema = GetSchemaReference(itemRefPath, schemas);
+                                        if (resolvedItemSchema != null)
+                                        {
+                                            array[i] = JObject.Parse(resolvedItemSchema);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // Recursively resolve array items
+                                        ResolveReferences(arrayItem);
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-            // Format the schema for better readability
+
+            // Start the resolution process
+            ResolveReferences(schemaCopy);
+
+            // Return the formatted resolved schema
             return schemaCopy.ToString(Formatting.Indented);
         }
+
     }
 }
